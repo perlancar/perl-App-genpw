@@ -99,7 +99,7 @@ sub _set_case {
     } elsif ($case eq 'lower') {
         return lc($str);
     } elsif ($case eq 'title') {
-        return lc($str);
+        return ucfirst(lc($str));
     } elsif ($case eq 'random') {
         return join("", map { rand() < 0.5 ? uc($_) : lc($_) } split(//, $str));
     } else {
@@ -180,7 +180,7 @@ sub genpw {
     my @passwords;
     for my $i (1..$num) {
             my $password =
-                _fill_pattern($patterns->[rand @$patterns], []);
+                _fill_pattern($patterns->[rand @$patterns], $args{_words});
             $password = _set_case($password, $case);
         push @passwords, $password;
     }
@@ -193,4 +193,10 @@ sub genpw {
 
 =head1 SYNOPSIS
 
-See the included script L<genpass-wordlist>.
+See the included script L<genpw>.
+
+
+=head1 SEE ALSO
+
+A few other utilities based on genpw: L<genpw-id> (from L<App::genpw::id>) and
+L<genpw-wordlist> (from L<App::genpw::wordlist>).
