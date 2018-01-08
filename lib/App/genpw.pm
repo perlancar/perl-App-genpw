@@ -18,15 +18,6 @@ my $digits             = ["0".."9"];
 my $letterdigits       = [@$letters, @$digits];
 my $letterdigitsymbols = [@$letterdigits, @$symbols];
 
-my $default_patterns = [
-    '%w %w %w',
-    '%w %w %w %w',
-    '%w %w %w %w %w',
-    '%w %w %w %w %w %w',
-    '%w%4d%w',
-    '%w%6d%s',
-];
-
 our %arg_patterns = (
     patterns => {
         'x.name.is_plural' => 1,
@@ -41,16 +32,15 @@ N is a number) will be replaced by a word of length N, %N$MP (where N and M is a
 number) will be replaced by a word of length between N and M. Anything else will
 be used as-is. Available conversions:
 
-    %w   Random word
     %l   Random Latin letter (A-Z, a-z)
     %d   Random digit (0-9)
     %a   Random letter/digit (Alphanum) (A-Z, a-z, 0-9; combination of %l and %d)
     %s   Random ASCII symbol, e.g. "-" (dash), "_" (underscore), etc.
     %x   Random letter/digit/ASCII symbol (combination of %a and %s)
     %%   A literal percent sign
+    %w   Random word
 
 _
-        default => $default_patterns,
         cmdline_aliases => {p=>{}},
     },
 );
@@ -102,10 +92,25 @@ sub _fill_conversion {
     }
 }
 
+sub _set_case {
+    my ($str, $case) = @_;
+    if ($case eq 'upper') {
+        return uc($str);
+    } elsif ($case eq 'lower') {
+        return lc($str);
+    } elsif ($case eq 'title') {
+        return lc($str);
+    } elsif ($case eq 'random') {
+        return join("", map { rand() < 0.5 ? uc($_) : lc($_) } split(//, $str));
+    } else {
+        return $str;
+    }
+}
+
 sub _fill_pattern {
     my ($pattern, $words) = @_;
 
-    $pattern =~ s/(?<all>%(?:(?<N>\d+)(?:\$(?<M>\d+))?)?(?<CONV>[Wwds%]))/
+    $pattern =~ s/(?<all>%(?:(?<N>\d+)(?:\$(?<M>\d+))?)?(?<CONV>[adlswx%]))/
         _fill_conversion({%+}, $words)/eg;
 
     $pattern;
@@ -131,28 +136,53 @@ _
             cmdline_aliases => {n=>{}},
         },
         %arg_patterns,
+        min_len => {
+            summary => 'If no pattern is supplied, will generate random '.
+                'alphanum characters with this minimum length',
+            schema => 'posint*',
+        },
+        max_len => {
+            summary => 'If no pattern is supplied, will generate random '.
+                'alphanum characters with this maximum length',
+            schema => 'posint*',
+        },
+        len => {
+            summary => 'If no pattern is supplied, will generate random '.
+                'alphanum characters with this exact length',
+            schema => 'posint*',
+            cmdline_aliases => {l=>{}},
+        },
+        case => {
+            summary => 'Force casing',
+            schema => ['str*', in=>['default','random','lower','upper','title']],
+            default => 'default',
+            description => <<'_',
+
+`default` means to not change case. `random` changes casing some letters
+randomly to lower-/uppercase. `lower` forces lower case. `upper` forces
+UPPER CASE. `title` forces Title case.
+
+_
+        },
     },
     examples => [
     ],
 };
-sub genpass {
+sub genpw {
     my %args = @_;
 
     my $num = $args{num} // 1;
-    my $wordlists = $args{wordlists} // ['EN::Enable'];
-    my $patterns = $args{patterns} // $default_patterns;
-
-    my $res = App::wordlist::wordlist(
-        (wordlists => $wordlists) x !!defined($wordlists),
-    );
-    return $res unless $res->[0] == 200;
-
-    my @words = shuffle @{ $res->[2] };
+    my $min_len = $args{min_len} // $args{len} // 8;
+    my $max_len = $args{max_len} // $args{len} // 20;
+    my $patterns = $args{patterns} // ["%$min_len\$${max_len}a"];
+    my $case = $args{case} // 'default';
 
     my @passwords;
     for my $i (1..$num) {
-        push @passwords,
-            _fill_pattern($patterns->[rand @$patterns], \@words);
+            my $password =
+                _fill_pattern($patterns->[rand @$patterns], []);
+            $password = _set_case($password, $case);
+        push @passwords, $password;
     }
 
     [200, "OK", \@passwords];
