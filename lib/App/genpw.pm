@@ -134,6 +134,7 @@ _
             schema => ['int*', min=>1],
             default => 1,
             cmdline_aliases => {n=>{}},
+            pos => 0,
         },
         %arg_patterns,
         min_len => {
