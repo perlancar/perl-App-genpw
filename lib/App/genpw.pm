@@ -118,7 +118,7 @@ sub _set_case {
 sub _fill_pattern {
     my ($pattern, $words) = @_;
 
-    $pattern =~ s/(?<all>%(?:(?<N>\d+)(?:\$(?<M>\d+))?)?(?<CONV>[adlswx%]))/
+    $pattern =~ s/(?<all>%(?:(?<N>\d+)(?:\$(?<M>\d+))?)?(?<CONV>[abBdlswx%]))/
         _fill_conversion({%+}, $words)/eg;
 
     $pattern;
