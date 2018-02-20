@@ -15,6 +15,7 @@ our %SPEC;
 my $symbols            = [split //, q(~`!@#$%^&*()_-+={}[]|\\:;"'<>,.?/)];                          # %s
 my $letters            = ["A".."Z","a".."z"];                                                       # %l
 my $digits             = ["0".."9"];                                                                # %d
+my $hexdigits          = ["0".."9","a".."f"];                                                       # %h
 my $letterdigits       = [@$letters, @$digits];                                                     # %a
 my $letterdigitsymbols = [@$letterdigits, @$symbols];                                               # %x
 my $base58characters   = [split //, q(ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz123456789)]; # %b
@@ -36,6 +37,7 @@ be used as-is. Available conversions:
 
     %l   Random Latin letter (A-Z, a-z)
     %d   Random digit (0-9)
+    %h   Random hexdigit (0-9a-f)
     %a   Random letter/digit (Alphanum) (A-Z, a-z, 0-9; combination of %l and %d)
     %s   Random ASCII symbol, e.g. "-" (dash), "_" (underscore), etc.
     %x   Random letter/digit/ASCII symbol (combination of %a and %s)
@@ -61,6 +63,8 @@ sub _fill_conversion {
         return join("", map {'%'} 1..$len);
     } elsif ($matches->{CONV} eq 'd') {
         return join("", map {$digits->[rand(@$digits)]} 1..$len);
+    } elsif ($matches->{CONV} eq 'h') {
+        return join("", map {$hexdigits->[rand(@$hexdigits)]} 1..$len);
     } elsif ($matches->{CONV} eq 'l') {
         return join("", map {$letters->[rand(@$letters)]} 1..$len);
     } elsif ($matches->{CONV} eq 'a') {
@@ -118,7 +122,7 @@ sub _set_case {
 sub _fill_pattern {
     my ($pattern, $words) = @_;
 
-    $pattern =~ s/(?<all>%(?:(?<N>\d+)(?:\$(?<M>\d+))?)?(?<CONV>[abBdlswx%]))/
+    $pattern =~ s/(?<all>%(?:(?<N>\d+)(?:\$(?<M>\d+))?)?(?<CONV>[abBdhlswx%]))/
         _fill_conversion({%+}, $words)/eg;
 
     $pattern;
