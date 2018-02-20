@@ -18,6 +18,7 @@ my $digits             = ["0".."9"];                                            
 my $hexdigits          = ["0".."9","a".."f"];                                                       # %h
 my $letterdigits       = [@$letters, @$digits];                                                     # %a
 my $letterdigitsymbols = [@$letterdigits, @$symbols];                                               # %x
+my $base64characters   = ["A".."Z","a".."z","0".."9","+","/"];                                      # %m
 my $base58characters   = [split //, q(ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz123456789)]; # %b
 my $base56characters   = [split //, q(ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789)];   # %B
 
@@ -41,8 +42,9 @@ be used as-is. Available conversions:
     %a   Random letter/digit (Alphanum) (A-Z, a-z, 0-9; combination of %l and %d)
     %s   Random ASCII symbol, e.g. "-" (dash), "_" (underscore), etc.
     %x   Random letter/digit/ASCII symbol (combination of %a and %s)
+    %m   Base64 character (A-Z, a-z, 0-9, +, /)
     %b   Base58 character (A-Z, a-z, 0-9 minus IOl0)
-    %b   Base56 character (A-Z, a-z, 0-9 minus IOol01)
+    %B   Base56 character (A-Z, a-z, 0-9 minus IOol01)
     %%   A literal percent sign
     %w   Random word
 
@@ -73,6 +75,8 @@ sub _fill_conversion {
         return join("", map {$symbols->[rand(@$symbols)]} 1..$len);
     } elsif ($matches->{CONV} eq 'x') {
         return join("", map {$letterdigitsymbols->[rand(@$letterdigitsymbols)]} 1..$len);
+    } elsif ($matches->{CONV} eq 'm') {
+        return join("", map {$base64characters->[rand(@$base64characters)]} 1..$len);
     } elsif ($matches->{CONV} eq 'b') {
         return join("", map {$base58characters->[rand(@$base58characters)]} 1..$len);
     } elsif ($matches->{CONV} eq 'B') {
@@ -122,7 +126,7 @@ sub _set_case {
 sub _fill_pattern {
     my ($pattern, $words) = @_;
 
-    $pattern =~ s/(?<all>%(?:(?<N>\d+)(?:\$(?<M>\d+))?)?(?<CONV>[abBdhlswx%]))/
+    $pattern =~ s/(?<all>%(?:(?<N>\d+)(?:\$(?<M>\d+))?)?(?<CONV>[abBdhlmswx%]))/
         _fill_conversion({%+}, $words)/eg;
 
     $pattern;
