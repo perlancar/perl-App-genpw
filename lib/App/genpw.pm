@@ -142,13 +142,14 @@ sub _pattern_has_w_conversion {
 
 $SPEC{genpw} = {
     v => 1.1,
-    summary => 'Generate random password',
+    summary => 'Generate random password (support patterns + wordlists)',
     description => <<'_',
 
 This is yet another utility to generate random password. Features:
 
 * Allow specifying pattern(s), e.g. '%8a%s' means 8 random alphanumeric
   characters followed by a symbol.
+* Use words from wordlists.
 * Use strong random source (<pm:Math::Random::Secure>) when available, otherwise
   fallback to Perl's builtin `rand()`.
 
