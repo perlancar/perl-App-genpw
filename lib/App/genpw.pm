@@ -123,13 +123,21 @@ sub _set_case {
     }
 }
 
+our $re = qr/(?<all>%(?:(?<N>\d+)(?:\$(?<M>\d+))?)?(?<CONV>[abBdhlmswx%]))/;
+
 sub _fill_pattern {
     my ($pattern, $words) = @_;
 
-    $pattern =~ s/(?<all>%(?:(?<N>\d+)(?:\$(?<M>\d+))?)?(?<CONV>[abBdhlmswx%]))/
-        _fill_conversion({%+}, $words)/eg;
+    $pattern =~ s/$re/_fill_conversion({%+}, $words)/eg;
 
     $pattern;
+}
+
+sub _pattern_has_w_conversion {
+    my ($pattern) = @_;
+    my $res;
+    $pattern =~ s/$re/if ($+{CONV} eq 'w') { $res = 1 }/eg;
+    $res;
 }
 
 $SPEC{genpw} = {
@@ -258,6 +266,18 @@ sub genpw {
     my $max_len = $args{max_len} // $args{len} // 20;
     my $patterns = $args{patterns} // ["%$min_len\$${max_len}a"];
     my $case = $args{case} // 'default';
+
+  GET_WORDS_FROM_STDIN:
+    {
+        last if defined $args{_words};
+        my $has_w;
+        for (@$patterns) {
+            if (_pattern_has_w_conversion($_)) { $has_w++; last }
+        }
+        last unless $has_w;
+        $args{_words} = [shuffle <STDIN>];
+        chomp for @{ $args{_words} };
+    }
 
     my @passwords;
     for my $i (1..$num) {
