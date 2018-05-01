@@ -194,7 +194,7 @@ Generate a random GUID:
 
 Like the above, but in uppercase:
 
-    % genpw -p '%8h-%4h-%4h-%4h-%12h'
+    % genpw -p '%8h-%4h-%4h-%4h-%12h' -U
     22E13D9E-1187-CD95-1D05-2B92A09E740D
 
 Use configuration file to avoid typing the pattern every time, put this in
