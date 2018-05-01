@@ -235,9 +235,19 @@ randomly to lower-/uppercase. `lower` forces lower case. `upper` forces
 UPPER CASE. `title` forces Title case.
 
 _
+            cmdline_aliases => {
+                U => {is_flag=>1, summary=>'Shortcut for --case=upper', code=>sub {$_[0]{case} = 'upper'}},
+                L => {is_flag=>1, summary=>'Shortcut for --case=lower', code=>sub {$_[0]{case} = 'lower'}},
+            },
         },
     },
     examples => [
+    ],
+    links => [
+        {url=>'prog:genpw-base56'},
+        {url=>'prog:genpw-base64'},
+        {url=>'prog:genpw-id'},
+        {url=>'prog:genpw-wordlist'},
     ],
 };
 sub genpw {
@@ -266,9 +276,3 @@ sub genpw {
 =head1 SYNOPSIS
 
 See the included script L<genpw>.
-
-
-=head1 SEE ALSO
-
-A few other utilities based on genpw: L<genpw-id> (from L<App::genpw::id>) and
-L<genpw-wordlist> (from L<App::genpw::wordlist>).
