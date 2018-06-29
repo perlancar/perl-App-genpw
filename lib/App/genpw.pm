@@ -155,7 +155,7 @@ This is yet another utility to generate random password. Features:
 
 Examples:
 
-By default generate base56 password 12-20 characters long (%12$20B):
+By default generate base56 password 12-20 characters long (-p %12$20B):
 
     % genpw
     Uk7Zim6pZeMTZQUyaM
