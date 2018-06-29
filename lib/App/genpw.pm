@@ -155,19 +155,19 @@ This is yet another utility to generate random password. Features:
 
 Examples:
 
-By default generate letters/digits 8-20 characters long:
+By default generate base56 password 12-20 characters long (%12$20B):
 
     % genpw
-    J9K3ZjBVR
+    Uk7Zim6pZeMTZQUyaM
 
 Generate 5 passwords instead of 1:
 
     % genpw 5
-    wAYftKsS
-    knaY7MOBbcvFFS3L1wyW
-    oQGz62aF
-    sG1A9reVOe
-    Zo8GoFEq
+    igYiRhUb5t9d9f3J
+    b7D44pnxZHJGQzDy2eg
+    RXDtqjMvp2hNAdQ
+    Xz3DmAL94akqtZ5xb
+    7TfANv9yxAaMGXm
 
 Generate random digits between 10 and 12 characters long:
 
@@ -263,9 +263,9 @@ sub genpw {
     my %args = @_;
 
     my $num = $args{num} // 1;
-    my $min_len = $args{min_len} // $args{len} // 8;
+    my $min_len = $args{min_len} // $args{len} // 12;
     my $max_len = $args{max_len} // $args{len} // 20;
-    my $patterns = $args{patterns} // ["%$min_len\$${max_len}a"];
+    my $patterns = $args{patterns} // ["%$min_len\$${max_len}B"];
     my $case = $args{case} // 'default';
 
   GET_WORDS_FROM_STDIN:
