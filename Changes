@@ -1,3 +1,12 @@
+0.009   2018-07-01 (PERLANCAR)
+
+	- No functional changes.
+
+	- Tweak Abstract.
+
+	- Tweak example.
+
+
 0.008   2018-06-29 (PERLANCAR)
 
 	- [ux] By default generate base56 passwords between 12-20
