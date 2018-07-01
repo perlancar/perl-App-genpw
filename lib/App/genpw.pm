@@ -142,7 +142,7 @@ sub _pattern_has_w_conversion {
 
 $SPEC{genpw} = {
     v => 1.1,
-    summary => 'Generate random password (support patterns + wordlists)',
+    summary => 'Generate random password, with patterns and wordlists',
     description => <<'_',
 
 This is yet another utility to generate random password. Features:
