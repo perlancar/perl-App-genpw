@@ -1,6 +1,8 @@
 package App::genpw;
 
+# AUTHORITY
 # DATE
+# DIST
 # VERSION
 
 use 5.010001;
@@ -21,6 +23,16 @@ my $letterdigitsymbols = [@$letterdigits, @$symbols];                           
 my $base64characters   = ["A".."Z","a".."z","0".."9","+","/"];                                      # %m
 my $base58characters   = [split //, q(ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz123456789)]; # %b
 my $base56characters   = [split //, q(ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789)];   # %B
+
+our %arg_action = (
+    action => {
+        schema => ['str*', in=>[qw/gen list-patterns/]],
+        default => 'gen',
+        cmdline_aliases => {
+            list_patterns => {summary=>'Shortcut for --action=list-patterns', is_flag=>1, code=>sub { $_[0]{action} = 'list-patterns' }},
+        },
+    },
+);
 
 our %arg_patterns = (
     patterns => {
@@ -210,6 +222,7 @@ then:
 
 _
     args => {
+        %arg_action,
         num => {
             schema => ['int*', min=>1],
             default => 1,
@@ -262,11 +275,16 @@ _
 sub genpw {
     my %args = @_;
 
+    my $action = $args{action} // 'gen';
     my $num = $args{num} // 1;
     my $min_len = $args{min_len} // $args{len} // 12;
     my $max_len = $args{max_len} // $args{len} // 20;
     my $patterns = $args{patterns} // ["%$min_len\$${max_len}B"];
     my $case = $args{case} // 'default';
+
+    if ($action eq 'list-patterns') {
+        return [200, "OK", $patterns];
+    }
 
   GET_WORDS_FROM_STDIN:
     {
