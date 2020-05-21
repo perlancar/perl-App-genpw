@@ -1,3 +1,8 @@
+0.010   2020-05-21  Released-By: PERLANCAR; Urgency: medium
+
+	- Add option --list-patterns (--action=list-patterns).
+
+
 0.009   2018-07-01  Released-By: PERLANCAR
 
 	- No functional changes.
