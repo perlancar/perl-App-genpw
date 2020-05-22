@@ -9,8 +9,9 @@ use 5.010001;
 use strict;
 use warnings;
 
+# TODO: random shuffling/picking of words from wordlist is not cryptographically
+# secure yet
 use Random::Any 'rand', -warn => 1;
-use List::Util qw(shuffle);
 
 our %SPEC;
 
@@ -66,7 +67,7 @@ _
 );
 
 sub _fill_conversion {
-    my ($matches, $words) = @_;
+    my ($matches, $words, $wl) = @_;
 
     my $n = $matches->{N};
     my $m = $matches->{M};
@@ -94,25 +95,23 @@ sub _fill_conversion {
     } elsif ($matches->{CONV} eq 'B') {
         return join("", map {$base56characters->[rand(@$base56characters)]} 1..$len);
     } elsif ($matches->{CONV} eq 'w') {
-        die "Ran out of words while trying to fill out conversion '$matches->{all}'" unless @$words;
-        my $i = 0;
-        my $word;
-        while ($i < @$words) {
-            if (defined $n && defined $m) {
-                if (length($words->[$i]) >= $n && length($words->[$i]) <= $m) {
-                    $word = splice @$words, $i, 1;
-                    last;
-                }
-            } elsif (defined $n) {
-                if (length($words->[$i]) == $n) {
-                    $word = splice @$words, $i, 1;
-                    last;
-                }
+       my $word;
+        my $iter = 0;
+        while (1) {
+            if ($words) {
+                @$words or die "Ran out of wordse (please use a longer wordlist or set a lower -n";
+                $word = shift @$words;
+            } elsif ($wl) {
+                ($word) = $wl->pick(1, "allow duplicates");
             } else {
-                $word = splice @$words, $i, 1;
-                last;
+                die "No supply of words for conversion '$matches->{all}'";
             }
-            $i++;
+
+            # repeat picking if word does not fulfill requirement (e.g. length)
+            next if defined $n && length $word < $n;
+            next if defined $m && length $word > $m;
+            do { undef $word; last } if $iter++ > 1000;
+            last;
         }
         die "Couldn't find suitable random words for conversion '$matches->{all}'"
             unless defined $word;
@@ -138,9 +137,9 @@ sub _set_case {
 our $re = qr/(?<all>%(?:(?<N>\d+)(?:\$(?<M>\d+))?)?(?<CONV>[abBdhlmswx%]))/;
 
 sub _fill_pattern {
-    my ($pattern, $words) = @_;
+    my ($pattern, $words, $wl) = @_;
 
-    $pattern =~ s/$re/_fill_conversion({%+}, $words)/eg;
+    $pattern =~ s/$re/_fill_conversion({%+}, $words, $wl)/eg;
 
     $pattern;
 }
@@ -288,20 +287,21 @@ sub genpw {
 
   GET_WORDS_FROM_STDIN:
     {
-        last if defined $args{_words};
+        last if defined $args{_words} || defined $args{_wl};
         my $has_w;
         for (@$patterns) {
             if (_pattern_has_w_conversion($_)) { $has_w++; last }
         }
         last unless $has_w;
-        $args{_words} = [shuffle <STDIN>];
+        require List::Util;
+        $args{_words} = [List::Util::shuffle(<STDIN>)];
         chomp for @{ $args{_words} };
     }
 
     my @passwords;
     for my $i (1..$num) {
             my $password =
-                _fill_pattern($patterns->[rand @$patterns], $args{_words});
+                _fill_pattern($patterns->[rand @$patterns], $args{_words}, $args{_wl});
             $password = _set_case($password, $case);
         push @passwords, $password;
     }
