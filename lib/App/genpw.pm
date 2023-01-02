@@ -1,10 +1,5 @@
 package App::genpw;
 
-# AUTHORITY
-# DATE
-# DIST
-# VERSION
-
 use 5.010001;
 use strict;
 use warnings;
@@ -12,6 +7,11 @@ use warnings;
 # TODO: random shuffling/picking of words from wordlist is not cryptographically
 # secure yet
 use Random::Any 'rand', -warn => 1;
+
+# AUTHORITY
+# DATE
+# DIST
+# VERSION
 
 our %SPEC;
 
