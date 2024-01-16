@@ -305,6 +305,9 @@ Like the above, but in uppercase:
     % genpw -p '%(u)8h-%(u)4h-%(u)4h-%(u)4h-%(u)12h'
     CA333840-6132-33A1-9C31-F2FF20EDB3EA
 
+    % genpw -p '%()(Str::uc)8h-%()(Str::uc)4h-%()(Str::uc)4h-%()(Str::uc)4h-%()(Str::uc)12h'
+    CA333840-6132-33A1-9C31-F2FF20EDB3EA
+
     % genpw -p '%8h-%4h-%4h-%4h-%12h' -U
     22E13D9E-1187-CD95-1D05-2B92A09E740D
 
