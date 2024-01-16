@@ -3,6 +3,7 @@ package App::genpw;
 use 5.010001;
 use strict;
 use warnings;
+use Log::ger;
 
 # TODO: random shuffling/picking of words from wordlist is not cryptographically
 # secure yet
@@ -19,6 +20,7 @@ my $symbols            = [split //, q(~`!@#$%^&*()_-+={}[]|\\:;"'<>,.?/)];      
 my $letters            = ["A".."Z","a".."z"];                                                       # %l
 my $digits             = ["0".."9"];                                                                # %d
 my $hexdigits          = ["0".."9","a".."f"];                                                       # %h
+my $hexdigits_upper    = ["0".."9","A".."F"];                                                       # %h
 my $letterdigits       = [@$letters, @$digits];                                                     # %a
 my $letterdigitsymbols = [@$letterdigits, @$symbols];                                               # %x
 my $base64characters   = ["A".."Z","a".."z","0".."9","+","/"];                                      # %m
@@ -41,17 +43,37 @@ our %arg_patterns = (
         'x.name.singular' => 'pattern',
         summary => 'Pattern(s) to use',
         schema => ['array*', of=>'str*', min_len=>1],
-        description => <<'_',
+        description => <<'MARKDOWN',
 
-A pattern is string that is similar to a printf pattern. %P (where P is certain
-letter signifying a format) will be replaced with some other string. %Nw (where
-N is a number) will be replaced by a word of length N, %N$MP (where N and M is a
-number) will be replaced by a word of length between N and M. Anything else will
-be used as-is. Available conversions:
+A pattern is string that is roughly similar to a printf pattern:
+
+    %P
+
+(where P is certain letter signifying a conversion) will be replaced with some
+other string according to the conversion, among which is the `w` conversion
+below:
+
+    %Nw
+
+(where N is a number) will be replaced by a word of length N.
+
+    %N$Mw
+
+(where N and M is a number) will be replaced by a word of length between N and
+M. And finally, an optional argument inside parenthesis is allowed:
+
+    %(u)10h       ; hexdigits in uppercase (due to argument 'u')
+    %(u)w         ; hexdigits in lowercase
+
+Anything else will be used as-is.
+
+Available conversions:
 
     %l   Random Latin letter (A-Z, a-z)
     %d   Random digit (0-9)
-    %h   Random hexdigit (0-9a-f)
+    %h   Random hexdigit (0-9a-f in lowercase [default] or 0-9A-F in uppercase).
+         Known arguments:
+         - "u" (for selecting uppercase).
     %a   Random letter/digit (Alphanum) (A-Z, a-z, 0-9; combination of %l and %d)
     %s   Random ASCII symbol, e.g. "-" (dash), "_" (underscore), etc.
     %x   Random letter/digit/ASCII symbol (combination of %a and %s)
@@ -59,13 +81,18 @@ be used as-is. Available conversions:
     %b   Base58 character (A-Z, a-z, 0-9 minus IOl0)
     %B   Base56 character (A-Z, a-z, 0-9 minus IOol01)
     %%   A literal percent sign
-    %w   Random word
-
-_
+    %w   Random word. Known arguments:
+         - "stdin:" (for getting the words from stdin, the default)
+         - "wordlist:NAME" (for getting the words from a <pm:WordList> module)
+         - "arraydata:NAME" (for getting the words from an <pm:ArrayData> module, the
+           Role::TinyCommons::Collection::PickItems::RandomPos will be applied).
+MARKDOWN
         cmdline_aliases => {p=>{}},
     },
 );
 
+my %perconv_wl_objs; # WordList objects instantiated by per-conversion wordlist specification
+my %perconv_ad_objs; # ArrayData objects instantiated by per-conversion wordlist specification
 sub _fill_conversion {
     my ($matches, $words, $wl) = @_;
 
@@ -79,7 +106,11 @@ sub _fill_conversion {
     } elsif ($matches->{CONV} eq 'd') {
         return join("", map {$digits->[rand(@$digits)]} 1..$len);
     } elsif ($matches->{CONV} eq 'h') {
-        return join("", map {$hexdigits->[rand(@$hexdigits)]} 1..$len);
+        if (defined($matches->{ARG}) && $matches->{ARG} eq 'u') {
+            return join("", map {$hexdigits_upper->[rand(@$hexdigits_upper)]} 1..$len);
+        } else {
+            return join("", map {$hexdigits->[rand(@$hexdigits)]} 1..$len);
+        }
     } elsif ($matches->{CONV} eq 'l') {
         return join("", map {$letters->[rand(@$letters)]} 1..$len);
     } elsif ($matches->{CONV} eq 'a') {
@@ -99,10 +130,30 @@ sub _fill_conversion {
         my $iter = 0;
         while (1) {
             if ($words) {
-                @$words or die "Ran out of wordse (please use a longer wordlist or set a lower -n";
+                @$words or die "Ran out of words (please use a longer wordlist or set a lower -n";
                 $word = shift @$words;
             } elsif ($wl) {
                 ($word) = $wl->pick(1, "allow duplicates");
+            } elsif (defined($matches->{ARG}) && length $matches->{ARG}) {
+                if ($matches->{ARG} =~ /\Awordlist:(.+)/) {
+                    my $perconv_wl = $1;
+                    unless ($perconv_wl_objs{$perconv_wl}) {
+                        log_trace "Instantiating WordList '$perconv_wl' ...";
+                        require Module::Load::Util;
+                        $perconv_wl_objs{$perconv_wl} = Module::Load::Util::instantiate_class_with_optional_args({ns_prefix=>'WordList'}, $perconv_wl);
+                    }
+                    ($word) = $perconv_wl_objs{$perconv_wl}->pick(1, "allow_duplicates");
+                } elsif ($matches->{ARG} =~ /\Aarraydata:(.+)/) {
+                    my $perconv_ad = $1;
+                    unless ($perconv_ad_objs{$perconv_ad}) {
+                        log_trace "Instantiating ArrayData '$perconv_ad' ...";
+                        require Module::Load::Util;
+                        $perconv_ad_objs{$perconv_ad} = Module::Load::Util::instantiate_class_with_optional_args({ns_prefix=>'ArrayData'}, $perconv_ad)->apply_roles("PickItems::RandomPos");
+                    }
+                    ($word) = $perconv_ad_objs{$perconv_ad}->pick_item;
+                } else {
+                    die "Unknown argument in '$matches->{all}' conversion: $matches->{ARG}";
+                }
             } else {
                 die "No supply of words for conversion '$matches->{all}'";
             }
@@ -134,7 +185,7 @@ sub _set_case {
     }
 }
 
-our $re = qr/(?<all>%(?:(?<N>\d+)(?:\$(?<M>\d+))?)?(?<CONV>[abBdhlmswx%]))/;
+our $re = qr/(?<all>%(?:\((?<ARG>[^)]*)\))?(?:(?<N>\d+)(?:\$(?<M>\d+))?)?(?<CONV>[abBdhlmswx%]))/;
 
 sub _fill_pattern {
     my ($pattern, $words, $wl) = @_;
@@ -144,17 +195,17 @@ sub _fill_pattern {
     $pattern;
 }
 
-sub _pattern_has_w_conversion {
+sub _pattern_has_stdin_w_conversion {
     my ($pattern) = @_;
     my $res;
-    $pattern =~ s/$re/if ($+{CONV} eq 'w') { $res = 1 }/eg;
+    $pattern =~ s/$re/if ($+{CONV} eq 'w' && (!defined($+{ARG}) || $+{ARG} eq '' || $+{ARG} eq 'stdin:')) { $res = 1 }/eg;
     $res;
 }
 
 $SPEC{genpw} = {
     v => 1.1,
-    summary => 'Generate random password, with patterns and wordlists',
-    description => <<'_',
+    summary => '(Gen)erate random password/strings, with (p)atterns and (w)ordlists',
+    description => <<'MARKDOWN',
 
 This is yet another utility to generate random password. Features:
 
@@ -195,6 +246,8 @@ Like the above, but words will be fetched from `WordList::*` modules. You need
 to install the <prog:genpw-wordlist> CLI. By default, will use wordlist from
 <pm:WordList::EN::Enable>:
 
+    % genpw -p '%(wordlist:EN::Enable)w%4d'
+
     % genpw-wordlist -p '%w%4d'
     sedimentologists8542
 
@@ -204,6 +257,9 @@ Generate a random GUID:
     ff26d142-37a8-ecdf-c7f6-8b6ae7b27695
 
 Like the above, but in uppercase:
+
+    % genpw -p '%(u)8h-%(u)4h-%(u)4h-%(u)4h-%(u)12h'
+    CA333840-6132-33A1-9C31-F2FF20EDB3EA
 
     % genpw -p '%8h-%4h-%4h-%4h-%12h' -U
     22E13D9E-1187-CD95-1D05-2B92A09E740D
@@ -219,7 +275,9 @@ then:
     % genpw -P guid
     008869fa-177e-3a46-24d6-0900a00e56d5
 
-_
+Keywords: generate, pattern, wordlist
+
+MARKDOWN
     args => {
         %arg_action,
         num => {
@@ -249,13 +307,13 @@ _
             summary => 'Force casing',
             schema => ['str*', in=>['default','random','lower','upper','title']],
             default => 'default',
-            description => <<'_',
+            description => <<'MARKDOWN',
 
 `default` means to not change case. `random` changes casing some letters
 randomly to lower-/uppercase. `lower` forces lower case. `upper` forces
 UPPER CASE. `title` forces Title case.
 
-_
+MARKDOWN
             cmdline_aliases => {
                 U => {is_flag=>1, summary=>'Shortcut for --case=upper', code=>sub {$_[0]{case} = 'upper'}},
                 L => {is_flag=>1, summary=>'Shortcut for --case=lower', code=>sub {$_[0]{case} = 'lower'}},
@@ -290,7 +348,7 @@ sub genpw {
         last if defined $args{_words} || defined $args{_wl};
         my $has_w;
         for (@$patterns) {
-            if (_pattern_has_w_conversion($_)) { $has_w++; last }
+            if (_pattern_has_stdin_w_conversion($_)) { $has_w++; last }
         }
         last unless $has_w;
         require List::Util;
