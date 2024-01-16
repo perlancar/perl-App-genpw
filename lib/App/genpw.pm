@@ -267,7 +267,7 @@ _
     links => [
         {url=>'prog:genpw-base56'},
         {url=>'prog:genpw-base64'},
-        {url=>'prog:genpw-id'},
+        {url=>'prog:genpw-ind'},
         {url=>'prog:genpw-wordlist'},
     ],
 };
