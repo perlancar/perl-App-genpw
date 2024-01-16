@@ -45,27 +45,34 @@ our %arg_patterns = (
         schema => ['array*', of=>'str*', min_len=>1],
         description => <<'MARKDOWN',
 
-A pattern is string that is roughly similar to a printf pattern:
+CONVERSION (`%P`). A pattern is string that is roughly similar to a printf
+pattern:
 
     %P
 
-(where P is certain letter signifying a conversion) will be replaced with some
-other string according to the conversion, among which is the `w` conversion
-below:
+where `P` is certain letter signifying a conversion. This will be replaced with
+some other string according to the conversion. An example is the `%h` conversion
+which will be replaced with hexdigit.
 
-    %Nw
+LENGTH (`%NP`). A non-negative integer (`N`) can be specified before the
+conversion to signify desired length, for example, `%4w` will return a random
+word of length 4.
 
-(where N is a number) will be replaced by a word of length N.
+MINIMUM AND MAXIMUM LENGTH (`%M$NP`). If two non-negative integers separated by
+`$` is specified before the conversion, this specify desired minimum and maximum
+length. For example, `%4$10h` will be replaced with between 4 and 10 hexdigits.
 
-    %N$Mw
+ARGUMENT AND FILTERS (`%(arg)P`, `%(arg)(filter1)(...)P`). Finally, an argument
+followed by zero or more filters can be specified (before the lengths) and
+before the conversion. For example, `%(wordlist:ID::KBBI)w` will be replaced by
+a random word from the wordlist <pm:WordList::ID::KBBI>. Another example,
+`%()(Str::uc)4$10h` will be replaced by between 4-10 uppercase hexdigits, and
+`%(arraydata:Sample::DeNiro)(Str::underscore_non_latin_alphanums)(Str::lc)(Str::ucfirst)w`
+will be replaced with a random movie title of Robert De Niro, where symbols are
+replaced with underscore then the string will be converted into lowercase and
+the first character uppercased, e.g. `Dear_america_letters_home_from_vietnam`.
 
-(where N and M is a number) will be replaced by a word of length between N and
-M. And finally, an optional argument inside parenthesis is allowed:
-
-    %(u)10h       ; hexdigits in uppercase (due to argument 'u')
-    %(u)w         ; hexdigits in lowercase
-
-Anything else will be used as-is.
+Anything else will be left as-is.
 
 Available conversions:
 
@@ -73,7 +80,7 @@ Available conversions:
     %d   Random digit (0-9)
     %h   Random hexdigit (0-9a-f in lowercase [default] or 0-9A-F in uppercase).
          Known arguments:
-         - "u" (for selecting uppercase).
+         - "u" (to use the uppercase instead of the default lowercase digits)
     %a   Random letter/digit (Alphanum) (A-Z, a-z, 0-9; combination of %l and %d)
     %s   Random ASCII symbol, e.g. "-" (dash), "_" (underscore), etc.
     %x   Random letter/digit/ASCII symbol (combination of %a and %s)
@@ -86,11 +93,15 @@ Available conversions:
          - "wordlist:NAME" (for getting the words from a <pm:WordList> module)
          - "arraydata:NAME" (for getting the words from an <pm:ArrayData> module, the
            Role::TinyCommons::Collection::PickItems::RandomPos will be applied).
+
+Filters are modules in the `Data::Sah::Filter::perl::` namespace.
+
 MARKDOWN
         cmdline_aliases => {p=>{}},
     },
 );
 
+my %filters;
 my %perconv_wl_objs; # WordList objects instantiated by per-conversion wordlist specification
 my %perconv_ad_objs; # ArrayData objects instantiated by per-conversion wordlist specification
 sub _fill_conversion {
@@ -101,30 +112,54 @@ sub _fill_conversion {
     my $len = defined($n) && defined($m) ? $n+int(rand()*($m-$n+1)) :
         defined($n) ? $n : 1;
 
+    my $res;
+    my $do_filter = sub {
+        return unless $matches->{FILTERS};
+        my @filters;
+        while ($matches->{FILTERS} =~ /\(([^)]+)\)/g) { push @filters, $1 }
+        require Data::Sah::Filter;
+        for my $filter (@filters) {
+            unless ($filters{$filter}) {
+                $filters{$filter} = Data::Sah::Filter::gen_filter(filter_names => [$filter]);
+            }
+            $res = $filters{$filter}->($res);
+        }
+    };
+
     if ($matches->{CONV} eq '%') {
-        return join("", map {'%'} 1..$len);
+        $res = join("", map {'%'} 1..$len);
+        $do_filter->(); return $res;
     } elsif ($matches->{CONV} eq 'd') {
-        return join("", map {$digits->[rand(@$digits)]} 1..$len);
+        $res = join("", map {$digits->[rand(@$digits)]} 1..$len);
+        $do_filter->(); return $res;
     } elsif ($matches->{CONV} eq 'h') {
         if (defined($matches->{ARG}) && $matches->{ARG} eq 'u') {
-            return join("", map {$hexdigits_upper->[rand(@$hexdigits_upper)]} 1..$len);
+            $res = join("", map {$hexdigits_upper->[rand(@$hexdigits_upper)]} 1..$len);
         } else {
-            return join("", map {$hexdigits->[rand(@$hexdigits)]} 1..$len);
+            $res = join("", map {$hexdigits->[rand(@$hexdigits)]} 1..$len);
         }
+        $do_filter->(); return $res;
     } elsif ($matches->{CONV} eq 'l') {
-        return join("", map {$letters->[rand(@$letters)]} 1..$len);
+        $res = join("", map {$letters->[rand(@$letters)]} 1..$len);
+        $do_filter->(); return $res;
     } elsif ($matches->{CONV} eq 'a') {
-        return join("", map {$letterdigits->[rand(@$letterdigits)]} 1..$len);
+        $res = join("", map {$letterdigits->[rand(@$letterdigits)]} 1..$len);
+        $do_filter->(); return $res;
     } elsif ($matches->{CONV} eq 's') {
-        return join("", map {$symbols->[rand(@$symbols)]} 1..$len);
+        $res = join("", map {$symbols->[rand(@$symbols)]} 1..$len);
+        $do_filter->(); return $res;
     } elsif ($matches->{CONV} eq 'x') {
-        return join("", map {$letterdigitsymbols->[rand(@$letterdigitsymbols)]} 1..$len);
+        $res = join("", map {$letterdigitsymbols->[rand(@$letterdigitsymbols)]} 1..$len);
+        $do_filter->(); return $res;
     } elsif ($matches->{CONV} eq 'm') {
-        return join("", map {$base64characters->[rand(@$base64characters)]} 1..$len);
+        $res = join("", map {$base64characters->[rand(@$base64characters)]} 1..$len);
+        $do_filter->(); return $res;
     } elsif ($matches->{CONV} eq 'b') {
-        return join("", map {$base58characters->[rand(@$base58characters)]} 1..$len);
+        $res = join("", map {$base58characters->[rand(@$base58characters)]} 1..$len);
+        $do_filter->(); return $res;
     } elsif ($matches->{CONV} eq 'B') {
-        return join("", map {$base56characters->[rand(@$base56characters)]} 1..$len);
+        $res = join("", map {$base56characters->[rand(@$base56characters)]} 1..$len);
+        $do_filter->(); return $res;
     } elsif ($matches->{CONV} eq 'w') {
        my $word;
         my $iter = 0;
@@ -166,8 +201,9 @@ sub _fill_conversion {
         }
         die "Couldn't find suitable random words for conversion '$matches->{all}'"
             unless defined $word;
-        return $word;
-    }
+       $res = $word;
+       $do_filter->(); return $res;
+   }
 }
 
 sub _set_case {
@@ -185,7 +221,15 @@ sub _set_case {
     }
 }
 
-our $re = qr/(?<all>%(?:\((?<ARG>[^)]*)\))?(?:(?<N>\d+)(?:\$(?<M>\d+))?)?(?<CONV>[abBdhlmswx%]))/;
+our $re = qr/(?<all>
+                 %
+                 (?:
+                     \((?<ARG>[^)]*)\)
+                     (?<FILTERS>(?:\([^)]+\))*)?
+                 )?
+                 (?:(?<N>\d+)(?:\$(?<M>\d+))?)?
+                 (?<CONV>[abBdhlmswx%]))
+            /x;
 
 sub _fill_pattern {
     my ($pattern, $words, $wl) = @_;
