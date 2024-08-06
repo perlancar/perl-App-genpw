@@ -94,7 +94,12 @@ Available conversions:
          - "arraydata:NAME" (for getting the words from an <pm:ArrayData> module, the
            Role::TinyCommons::Collection::PickItems::RandomPos will be applied).
 
-Filters are modules in the `Data::Sah::Filter::perl::` namespace.
+Filter names are modules in the `Data::Sah::Filter::perl::` namespace (without
+the prefix). To list available filters, you can use <prog:pmlist> or
+<prog:list-sah-filter-rule-modules>:
+
+    % pmlist 'Data::Sah::Filter::perl::**'
+    % list-sah-filter-rule-modules --perl
 
 MARKDOWN
         cmdline_aliases => {p=>{}},
