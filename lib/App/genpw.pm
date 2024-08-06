@@ -322,6 +322,11 @@ then:
     % genpw -P guid
     008869fa-177e-3a46-24d6-0900a00e56d5
 
+Even more (real-world) examples:
+
+    # Generate a few random Tokopedia/Shopee voucher codes (5 alphanumeric characters)
+    % genpw -p '%()(Str::uppercase)5a' 4
+
 Keywords: generate, pattern, wordlist
 
 MARKDOWN
